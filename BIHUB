@@ -1,26 +1,21 @@
--- ASTDX Record-Play with GUI + Toggle Menu + Drag + Save Settings
+-- ASTDX Record-Play with Multi File Save/Load System
 
 local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
 local Http = game:GetService("HttpService")
 
--- CONFIG FILE
+-- CONFIG
 local configFile = "ASTDX_Config.json"
 local settings = {
-    isRecording = false,
-    isPlaying = false,
+    lastFile = ""
 }
-
--- Load saved settings
 if isfile(configFile) then
     local raw = readfile(configFile)
     local loaded = Http:JSONDecode(raw)
-    for k,v in pairs(loaded) do
-        settings[k] = v
-    end
+    for k,v in pairs(loaded) do settings[k] = v end
 end
 
--- Save settings
+-- Save to config
 local function saveSettings()
     writefile(configFile, Http:JSONEncode(settings))
 end
@@ -31,116 +26,159 @@ gui.Name = "ASTDX_GUI"
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 300, 0, 180)
-frame.Position = UDim2.new(0.5, -150, 0.5, -90)
+frame.Size = UDim2.new(0, 320, 0, 240)
+frame.Position = UDim2.new(0.5, -160, 0.5, -120)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
-frame.Visible = true
 frame.Active = true
-frame.Draggable = true -- <--- Drag GUI ได้เลย!
+frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "ASTDX Record & Play"
+title.Text = "ASTDX Record System"
 title.BackgroundTransparency = 1
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextColor3 = Color3.fromRGB(255,255,255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
 
--- สร้างปุ่มแบบ Switch
-local function createSwitch(text, posY, defaultState, callback)
-    local toggle = Instance.new("TextButton", frame)
-    toggle.Size = UDim2.new(0.9, 0, 0, 30)
-    toggle.Position = UDim2.new(0.05, 0, 0, posY)
-    toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggle.Font = Enum.Font.GothamSemibold
-    toggle.TextSize = 16
-    toggle.BorderSizePixel = 0
+-- Input file name
+local fileBox = Instance.new("TextBox", frame)
+fileBox.Size = UDim2.new(0.9, 0, 0, 30)
+fileBox.Position = UDim2.new(0.05, 0, 0, 40)
+fileBox.PlaceholderText = "ชื่อไฟล์ เช่น: auto1"
+fileBox.Font = Enum.Font.Gotham
+fileBox.TextSize = 16
+fileBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+fileBox.TextColor3 = Color3.fromRGB(255,255,255)
+fileBox.Text = settings.lastFile or ""
 
-    local state = defaultState
-    toggle.Text = text .. ": " .. (state and "ON" or "OFF")
-
-    toggle.MouseButton1Click:Connect(function()
-        state = not state
-        toggle.Text = text .. ": " .. (state and "ON" or "OFF")
-        callback(state)
-        saveSettings()
-    end)
-
-    return toggle
+-- ปุ่ม
+local function createButton(text, posY, callback)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Position = UDim2.new(0.05, 0, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 16
+    btn.Text = text
+    btn.MouseButton1Click:Connect(callback)
+    return btn
 end
 
--- บันทึกการเคลื่อนไหวของเมาส์
+-- ตัวแปร
+local isRecording = false
+local isPlaying = false
 local recordedData = {}
-local index = 1
+local playIndex = 1
 
+-- Save File
+local function saveToFile(filename)
+    if #recordedData == 0 then return end
+    local data = Http:JSONEncode(recordedData)
+    writefile("record_"..filename..".json", data)
+    settings.lastFile = filename
+    saveSettings()
+end
+
+-- Load File
+local function loadFromFile(filename)
+    local path = "record_"..filename..".json"
+    if isfile(path) then
+        local raw = readfile(path)
+        recordedData = Http:JSONDecode(raw)
+        settings.lastFile = filename
+        saveSettings()
+        return true
+    end
+    return false
+end
+
+-- Delete File
+local function deleteFile(filename)
+    local path = "record_"..filename..".json"
+    if isfile(path) then
+        delfile(path)
+        if settings.lastFile == filename then
+            settings.lastFile = ""
+            saveSettings()
+        end
+    end
+end
+
+-- Action Buttons
+createButton("เริ่มบันทึก (Record)", 80, function()
+    isRecording = true
+    recordedData = {}
+end)
+
+createButton("หยุดบันทึก", 120, function()
+    isRecording = false
+end)
+
+createButton("เล่นอัตโนมัติ (Play)", 160, function()
+    if #recordedData == 0 then return end
+    isPlaying = true
+    playIndex = 1
+end)
+
+createButton("บันทึกไฟล์", 200, function()
+    local name = fileBox.Text
+    if name and name ~= "" then
+        saveToFile(name)
+    end
+end)
+
+createButton("โหลดไฟล์", 240, function()
+    local name = fileBox.Text
+    if name and name ~= "" then
+        loadFromFile(name)
+    end
+end)
+
+createButton("ลบไฟล์", 280, function()
+    local name = fileBox.Text
+    if name and name ~= "" then
+        deleteFile(name)
+    end
+end)
+
+-- ระบบบันทึก
 local function recordStep()
-    if settings.isRecording then
+    if isRecording then
         local pos = UIS:GetMouseLocation()
         table.insert(recordedData, {X = pos.X, Y = pos.Y})
     end
 end
 
+-- ระบบเล่น
 local function playStep()
-    if settings.isPlaying and recordedData[index] then
-        local pos = recordedData[index]
+    if isPlaying and recordedData[playIndex] then
+        local pos = recordedData[playIndex]
         if typeof(SetMousePosition) == "function" then
             SetMousePosition(pos.X, pos.Y)
         end
-        index += 1
-        if index > #recordedData then
-            settings.isPlaying = false
-            index = 1
+        playIndex += 1
+        if playIndex > #recordedData then
+            isPlaying = false
         end
     end
 end
 
--- ปุ่มต่าง ๆ
-local recSwitch = createSwitch("Record", 40, settings.isRecording, function(state)
-    settings.isRecording = state
-    if state then recordedData = {} end
+-- Loop
+RS.Heartbeat:Connect(function()
+    if isRecording then recordStep() end
+    if isPlaying then playStep() end
 end)
 
-local playSwitch = createSwitch("Play Auto", 80, settings.isPlaying, function(state)
-    settings.isPlaying = state
-    if state then index = 1 end
-end)
-
-local clearBtn = Instance.new("TextButton", frame)
-clearBtn.Size = UDim2.new(0.9, 0, 0, 30)
-clearBtn.Position = UDim2.new(0.05, 0, 0, 120)
-clearBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 40)
-clearBtn.BorderSizePixel = 0
-clearBtn.TextColor3 = Color3.fromRGB(255,255,255)
-clearBtn.Font = Enum.Font.GothamSemibold
-clearBtn.TextSize = 16
-clearBtn.Text = "Clear Record"
-clearBtn.MouseButton1Click:Connect(function()
-    recordedData = {}
-    settings.isPlaying = false
-    settings.isRecording = false
-    recSwitch.Text = "Record: OFF"
-    playSwitch.Text = "Play Auto: OFF"
-    saveSettings()
-end)
-
--- toggle GUI visibility ด้วยปุ่ม F5
+-- เปิด/ปิด GUI ด้วย F5
 UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.F5 then
         frame.Visible = not frame.Visible
     end
 end)
 
--- loop ตรวจจับ record/play
-RS.Heartbeat:Connect(function()
-    if settings.isRecording then
-        recordStep()
-    end
-    if settings.isPlaying then
-        playStep()
-    end
-end)
-
--- Save settings ทันทีเมื่อเริ่มต้น
-saveSettings()
+-- โหลดอัตโนมัติถ้ามี
+if settings.lastFile and settings.lastFile ~= "" then
+    loadFromFile(settings.lastFile)
+end
