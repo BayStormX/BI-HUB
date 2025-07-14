@@ -94,7 +94,6 @@ ClearButton.MouseButton1Click:Connect(function()
 end)
 
 -- 💾 บันทึกโปรไฟล์ (จำเป็นต้องใช้ getfenv/savefile ถ้า executor รองรับ)
--- 💾 บันทึกโปรไฟล์ (จำเป็นต้องใช้ getfenv/savefile ถ้า executor รองรับ)
 SaveProfileButton.MouseButton1Click:Connect(function()
     if writefile then
         writefile("astdx_profile.json", game:GetService("HttpService"):JSONEncode(actions))
