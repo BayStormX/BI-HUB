@@ -1,27 +1,121 @@
+-- ASTDX Record-Play Auto Script with GUI
+
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
 local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "RecordPlayGUI"
+ScreenGui.Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
 local Frame = Instance.new("Frame")
-local StartButton = Instance.new("TextButton")
-local PlayButton = Instance.new("TextButton")
-local ClearButton = Instance.new("TextButton")
-local SaveProfileButton = Instance.new("TextButton")
-local LoadProfileButton = Instance.new("TextButton")
-local StatusLabel = Instance.new("TextLabel")
-
--- 📦 ตั้งค่า GUI
-ScreenGui.Parent = game.CoreGui
-Frame.Parent = ScreenGui
+Frame.Size = UDim2.new(0, 300, 0, 160)
+Frame.Position = UDim2.new(0.5, -150, 0.5, -80)
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.Position = UDim2.new(0, 20, 0, 150)
-Frame.Size = UDim2.new(0, 200, 0, 300)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+Frame.ClipsDescendants = true
+Frame.BackgroundTransparency = 0.2
+Frame.AutomaticSize = Enum.AutomaticSize.None
+Frame.ZIndex = 10
 
--- ปุ่ม Start Record
-StartButton.Parent = Frame
-StartButton.Position = UDim2.new(0, 10, 0, 10)
-StartButton.Size = UDim2.new(0, 180, 0, 40)
-StartButton.Text = "🔴 Start Record"
-StartButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+local Title = Instance.new("TextLabel")
+Title.Text = "ASTDX Record & Play Auto"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = Frame
 
--- ปุ่ม Play Auto
-PlayButton.Parent = Frame
-PlayButton.Position = UDim2.new(0, 10, 0, 60)
-PlayButton.Size = UDim2.new(0,
+local function createButton(text, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Position = UDim2.new(0.05, 0, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.BorderSizePixel = 0
+    btn.TextColor3 = Color3.fromRGB(230, 230, 230)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 16
+    btn.Text = text
+    btn.AutoButtonColor = true
+    btn.Parent = Frame
+    return btn
+end
+
+local recordBtn = createButton("Start Record", 40)
+local playBtn = createButton("Play Auto", 80)
+local clearBtn = createButton("Clear Record", 120)
+
+local isRecording = false
+local recordedData = {}
+local isPlaying = false
+local playIndex = 1
+
+local function recordStep()
+    if isRecording then
+        local mousePos = UIS:GetMouseLocation()
+        table.insert(recordedData, {X=mousePos.X, Y=mousePos.Y})
+    end
+end
+
+local function playStep()
+    if isPlaying and #recordedData > 0 then
+        local pos = recordedData[playIndex]
+        -- ถ้า ASTDX/Delta มีฟังก์ชันเลื่อนเมาส์แบบนี้
+        if typeof(SetMousePosition) == "function" then
+            SetMousePosition(pos.X, pos.Y)
+        end
+        playIndex = playIndex + 1
+        if playIndex > #recordedData then
+            isPlaying = false
+            playIndex = 1
+            playBtn.Text = "Play Auto"
+        end
+    end
+end
+
+recordBtn.MouseButton1Click:Connect(function()
+    if not isRecording then
+        isRecording = true
+        recordedData = {}
+        recordBtn.Text = "Stop Record"
+        print("Recording started")
+    else
+        isRecording = false
+        recordBtn.Text = "Start Record"
+        print("Recording stopped")
+    end
+end)
+
+playBtn.MouseButton1Click:Connect(function()
+    if #recordedData == 0 then
+        print("No recorded data to play")
+        return
+    end
+    if not isPlaying then
+        isPlaying = true
+        playIndex = 1
+        playBtn.Text = "Stop Play"
+        print("Playback started")
+    else
+        isPlaying = false
+        playBtn.Text = "Play Auto"
+        playIndex = 1
+        print("Playback stopped")
+    end
+end)
+
+clearBtn.MouseButton1Click:Connect(function()
+    recordedData = {}
+    print("Recorded data cleared")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if isRecording then
+        recordStep()
+    end
+    if isPlaying then
+        playStep()
+    end
+end)
