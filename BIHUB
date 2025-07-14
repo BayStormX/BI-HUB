@@ -1,121 +1,146 @@
--- ASTDX Record-Play Auto Script with GUI
+-- ASTDX Record-Play with GUI + Toggle Menu + Drag + Save Settings
 
 local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local RS = game:GetService("RunService")
+local Http = game:GetService("HttpService")
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "RecordPlayGUI"
-ScreenGui.Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+-- CONFIG FILE
+local configFile = "ASTDX_Config.json"
+local settings = {
+    isRecording = false,
+    isPlaying = false,
+}
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 300, 0, 160)
-Frame.Position = UDim2.new(0.5, -150, 0.5, -80)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-Frame.AnchorPoint = Vector2.new(0.5, 0.5)
-Frame.ClipsDescendants = true
-Frame.BackgroundTransparency = 0.2
-Frame.AutomaticSize = Enum.AutomaticSize.None
-Frame.ZIndex = 10
-
-local Title = Instance.new("TextLabel")
-Title.Text = "ASTDX Record & Play Auto"
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundTransparency = 1
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.Parent = Frame
-
-local function createButton(text, posY)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 30)
-    btn.Position = UDim2.new(0.05, 0, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn.BorderSizePixel = 0
-    btn.TextColor3 = Color3.fromRGB(230, 230, 230)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 16
-    btn.Text = text
-    btn.AutoButtonColor = true
-    btn.Parent = Frame
-    return btn
+-- Load saved settings
+if isfile(configFile) then
+    local raw = readfile(configFile)
+    local loaded = Http:JSONDecode(raw)
+    for k,v in pairs(loaded) do
+        settings[k] = v
+    end
 end
 
-local recordBtn = createButton("Start Record", 40)
-local playBtn = createButton("Play Auto", 80)
-local clearBtn = createButton("Clear Record", 120)
+-- Save settings
+local function saveSettings()
+    writefile(configFile, Http:JSONEncode(settings))
+end
 
-local isRecording = false
+-- GUI
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.Name = "ASTDX_GUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 300, 0, 180)
+frame.Position = UDim2.new(0.5, -150, 0.5, -90)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Visible = true
+frame.Active = true
+frame.Draggable = true -- <--- Drag GUI ได้เลย!
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "ASTDX Record & Play"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+
+-- สร้างปุ่มแบบ Switch
+local function createSwitch(text, posY, defaultState, callback)
+    local toggle = Instance.new("TextButton", frame)
+    toggle.Size = UDim2.new(0.9, 0, 0, 30)
+    toggle.Position = UDim2.new(0.05, 0, 0, posY)
+    toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggle.Font = Enum.Font.GothamSemibold
+    toggle.TextSize = 16
+    toggle.BorderSizePixel = 0
+
+    local state = defaultState
+    toggle.Text = text .. ": " .. (state and "ON" or "OFF")
+
+    toggle.MouseButton1Click:Connect(function()
+        state = not state
+        toggle.Text = text .. ": " .. (state and "ON" or "OFF")
+        callback(state)
+        saveSettings()
+    end)
+
+    return toggle
+end
+
+-- บันทึกการเคลื่อนไหวของเมาส์
 local recordedData = {}
-local isPlaying = false
-local playIndex = 1
+local index = 1
 
 local function recordStep()
-    if isRecording then
-        local mousePos = UIS:GetMouseLocation()
-        table.insert(recordedData, {X=mousePos.X, Y=mousePos.Y})
+    if settings.isRecording then
+        local pos = UIS:GetMouseLocation()
+        table.insert(recordedData, {X = pos.X, Y = pos.Y})
     end
 end
 
 local function playStep()
-    if isPlaying and #recordedData > 0 then
-        local pos = recordedData[playIndex]
-        -- ถ้า ASTDX/Delta มีฟังก์ชันเลื่อนเมาส์แบบนี้
+    if settings.isPlaying and recordedData[index] then
+        local pos = recordedData[index]
         if typeof(SetMousePosition) == "function" then
             SetMousePosition(pos.X, pos.Y)
         end
-        playIndex = playIndex + 1
-        if playIndex > #recordedData then
-            isPlaying = false
-            playIndex = 1
-            playBtn.Text = "Play Auto"
+        index += 1
+        if index > #recordedData then
+            settings.isPlaying = false
+            index = 1
         end
     end
 end
 
-recordBtn.MouseButton1Click:Connect(function()
-    if not isRecording then
-        isRecording = true
-        recordedData = {}
-        recordBtn.Text = "Stop Record"
-        print("Recording started")
-    else
-        isRecording = false
-        recordBtn.Text = "Start Record"
-        print("Recording stopped")
-    end
+-- ปุ่มต่าง ๆ
+local recSwitch = createSwitch("Record", 40, settings.isRecording, function(state)
+    settings.isRecording = state
+    if state then recordedData = {} end
 end)
 
-playBtn.MouseButton1Click:Connect(function()
-    if #recordedData == 0 then
-        print("No recorded data to play")
-        return
-    end
-    if not isPlaying then
-        isPlaying = true
-        playIndex = 1
-        playBtn.Text = "Stop Play"
-        print("Playback started")
-    else
-        isPlaying = false
-        playBtn.Text = "Play Auto"
-        playIndex = 1
-        print("Playback stopped")
-    end
+local playSwitch = createSwitch("Play Auto", 80, settings.isPlaying, function(state)
+    settings.isPlaying = state
+    if state then index = 1 end
 end)
 
+local clearBtn = Instance.new("TextButton", frame)
+clearBtn.Size = UDim2.new(0.9, 0, 0, 30)
+clearBtn.Position = UDim2.new(0.05, 0, 0, 120)
+clearBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 40)
+clearBtn.BorderSizePixel = 0
+clearBtn.TextColor3 = Color3.fromRGB(255,255,255)
+clearBtn.Font = Enum.Font.GothamSemibold
+clearBtn.TextSize = 16
+clearBtn.Text = "Clear Record"
 clearBtn.MouseButton1Click:Connect(function()
     recordedData = {}
-    print("Recorded data cleared")
+    settings.isPlaying = false
+    settings.isRecording = false
+    recSwitch.Text = "Record: OFF"
+    playSwitch.Text = "Play Auto: OFF"
+    saveSettings()
 end)
 
-RunService.Heartbeat:Connect(function()
-    if isRecording then
+-- toggle GUI visibility ด้วยปุ่ม F5
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F5 then
+        frame.Visible = not frame.Visible
+    end
+end)
+
+-- loop ตรวจจับ record/play
+RS.Heartbeat:Connect(function()
+    if settings.isRecording then
         recordStep()
     end
-    if isPlaying then
+    if settings.isPlaying then
         playStep()
     end
 end)
+
+-- Save settings ทันทีเมื่อเริ่มต้น
+saveSettings()
