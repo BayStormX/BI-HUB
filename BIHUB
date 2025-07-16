@@ -78,16 +78,18 @@ ProfileBox.Text = ""
 ProfileBox.Visible = true
 
 -- 🔧 ฟังก์ชันบันทึก
-function RecordAction(action, data)
+function RecordAction(action, extra)
     local entry = {
         time = tick(),
-        action = action,
-        data = data
+        action = action
     }
+    for k, v in pairs(extra) do
+        entry[k] = v
+    end
     table.insert(getgenv().MacroData, entry)
 end
 
--- ▶️ เล่น Macro
+-- ▶️ เล่น Macro แบบละเอียดเหมือนไฟล์ T1
 function PlayMacro(speed)
     local data = getgenv().MacroData
     if #data == 0 then return end
@@ -96,8 +98,16 @@ function PlayMacro(speed)
         local delayTime = (act.time - t0)
         if speed == "Fast" then delayTime = delayTime / 2 end
         task.delay(delayTime, function()
-            print("🔁", act.action, act.data)
-            -- TODO: เชื่อมฟังก์ชันของ ASTDX จริง เช่น วางยูนิต/อัปเกรด
+            if act.action == "UNIT_PLACE" then
+                print("🟩 วางยูนิต:", act.unitName, "ตำแหน่ง:", act.Position)
+                -- TODO: เรียกฟังก์ชันวางยูนิตจริงใน ASTDX
+            elseif act.action == "OnUpgradeClicked" then
+                print("🟦 อัปเกรดยูนิต Index:", act.unitIndex)
+                -- TODO: เรียกฟังก์ชันอัปเกรดยูนิตจริง
+            elseif act.action == "OnSpecialClick" then
+                print("🟪 ใช้สกิลพิเศษ UnitIndex:", act.unitIndex, "→", act.data1, act.data2)
+                -- TODO: เรียกฟังก์ชันใช้สกิลจริง
+            end
         end)
     end
 end
@@ -131,7 +141,10 @@ end
 local selectedSpeed = "Normal"
 
 RecordBtn.MouseButton1Click:Connect(function()
-    RecordAction("PlaceUnit", {x = 100, y = 0, z = -100, unit = "Ichigo"})
+    RecordAction("UNIT_PLACE", {
+        unitName = "TestUnit",
+        Position = "0,0,0"
+    })
 end)
 
 PlayBtn.MouseButton1Click:Connect(function()
