@@ -1,7 +1,6 @@
--- ✅ รวมโค้ด GUI หลักกับระบบแจ้งเตือน + toggle Record/Play และการดึงชื่อยูนิตอัตโนมัติ พร้อมบันทึกอัตโนมัติเมื่อหยุดอัด
--- ให้วางทั้งหมดใน Executor (เช่น Hydrogen, Fluxus, Synapse)
+-- ✅ ระบบ GUI บันทึกและเล่น Macro พร้อมโหลดจากไฟล์ JSON ที่บันทึกไว้
+-- ให้ผู้ใช้บันทึก macro แล้วโหลดกลับมาเล่นใหม่แบบสมบูรณ์
 
--- 🌐 ใช้ getgenv เพื่อให้ข้ามไฟล์ได้
 getgenv().MacroData = {}
 getgenv().SelectedProfile = "Default"
 
@@ -10,9 +9,9 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- 🖼️ GUI หลัก
+-- 📦 โหลดและตั้งค่า GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ASTDX_MacroGui"
+ScreenGui.Name = "MacroGui"
 ScreenGui.ResetOnSpawn = false
 if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end
 ScreenGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
@@ -20,97 +19,72 @@ ScreenGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
 Frame.Position = UDim2.new(0, 20, 0, 150)
-Frame.Size = UDim2.new(0, 200, 0, 420)
+Frame.Size = UDim2.new(0, 220, 0, 460)
 Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Draggable = true
 
--- ปุ่มพับเก็บ GUI
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 180, 0, 30)
-ToggleBtn.Position = UDim2.new(0, 10, 0, 0)
-ToggleBtn.Text = "🔽 Hide GUI"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-ToggleBtn.Font = Enum.Font.SourceSans
-ToggleBtn.TextSize = 18
-ToggleBtn.Parent = Frame
+-- 📢 แจ้งเตือนสถานะ
+local Notify = Instance.new("TextLabel")
+Notify.Parent = ScreenGui
+Notify.Size = UDim2.new(0, 300, 0, 30)
+Notify.Position = UDim2.new(0, 10, 1, -40)
+Notify.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Notify.BackgroundTransparency = 0.3
+Notify.TextColor3 = Color3.new(1, 1, 1)
+Notify.Font = Enum.Font.SourceSansBold
+Notify.TextSize = 18
+Notify.Text = ""
+Notify.Visible = false
 
-local isVisible = true
-ToggleBtn.MouseButton1Click:Connect(function()
-    isVisible = not isVisible
-    for _, child in ipairs(Frame:GetChildren()) do
-        if child ~= ToggleBtn then child.Visible = isVisible end
-    end
-    ToggleBtn.Text = isVisible and "🔽 Hide GUI" or "▶️ Show GUI"
-end)
+function ShowNotify(text)
+    Notify.Text = text
+    Notify.Visible = true
+    task.delay(2, function()
+        Notify.Visible = false
+    end)
+end
 
+-- 🧩 ปุ่ม GUI
 local function makeBtn(name, text, y)
     local btn = Instance.new("TextButton")
     btn.Name = name
-    btn.Size = UDim2.new(0, 180, 0, 30)
-    btn.Position = UDim2.new(0, 10, 0, y)
     btn.Text = text
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.Size = UDim2.new(0, 200, 0, 30)
+    btn.Position = UDim2.new(0, 10, 0, y)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.SourceSans
     btn.TextSize = 18
-    btn.Visible = true
     btn.Parent = Frame
     return btn
 end
 
--- ปุ่ม
-local RecordSwitch = makeBtn("RecordSwitch", "🟡 Record: OFF", 40)
-local PlaySwitch = makeBtn("PlaySwitch", "🟡 Play: OFF", 80)
-local SaveBtn = makeBtn("SaveBtn", "💾 Save Profile", 120)
-local LoadBtn = makeBtn("LoadBtn", "📂 Load Profile", 160)
-local SpeedDropdown = makeBtn("SpeedBtn", "Speed: Normal", 200)
+local RecordBtn = makeBtn("RecordBtn", "🔴 Record", 10)
+local PlayBtn = makeBtn("PlayBtn", "▶️ Play", 50)
+local SaveBtn = makeBtn("SaveBtn", "💾 Save", 90)
+local LoadBtn = makeBtn("LoadBtn", "📂 Load", 130)
 
--- กล่องชื่อโปรไฟล์
 local ProfileBox = Instance.new("TextBox")
 ProfileBox.Parent = Frame
-ProfileBox.Size = UDim2.new(0, 180, 0, 30)
-ProfileBox.Position = UDim2.new(0, 10, 0, 240)
-ProfileBox.PlaceholderText = "ชื่อโปรไฟล์"
+ProfileBox.Size = UDim2.new(0, 200, 0, 30)
+ProfileBox.Position = UDim2.new(0, 10, 0, 170)
+ProfileBox.PlaceholderText = "ชื่อโปรไฟล์ (ไม่ต้องมี .json)"
+ProfileBox.Text = ""
 ProfileBox.TextColor3 = Color3.new(1, 1, 1)
 ProfileBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 ProfileBox.Font = Enum.Font.SourceSans
-ProfileBox.TextSize = 18
-ProfileBox.Text = ""
-ProfileBox.Visible = true
+ProfileBox.TextSize = 16
 
--- แจ้งเตือน
-local NotifyLabel = Instance.new("TextLabel")
-NotifyLabel.Size = UDim2.new(0, 300, 0, 30)
-NotifyLabel.Position = UDim2.new(0, 10, 1, -40)
-NotifyLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-NotifyLabel.BackgroundTransparency = 0.3
-NotifyLabel.TextColor3 = Color3.new(1, 1, 1)
-NotifyLabel.Font = Enum.Font.SourceSansBold
-NotifyLabel.TextSize = 18
-NotifyLabel.Text = ""
-NotifyLabel.Visible = false
-NotifyLabel.Parent = ScreenGui
-
-function ShowNotify(msg)
-    NotifyLabel.Text = msg
-    NotifyLabel.Visible = true
-    task.delay(2, function()
-        NotifyLabel.Visible = false
-    end)
-end
-
--- สถานะ
+-- 🔧 ฟังก์ชันบันทึก
 local isRecording = false
-local isPlaying = false
-local selectedSpeed = "Normal"
-
--- บันทึก Action
 function RecordAction(action, extra)
     if not isRecording then return end
-    local entry = { time = tick(), action = action }
+    local entry = {
+        time = tick(),
+        action = action
+    }
     for k, v in pairs(extra) do entry[k] = v end
     if action == "UNIT_PLACE" and not entry.unitName then
         local target = Mouse.Target
@@ -119,94 +93,78 @@ function RecordAction(action, extra)
     table.insert(getgenv().MacroData, entry)
 end
 
--- เล่น Macro
+-- ▶️ เล่น Macro
 function PlayMacro()
     local data = getgenv().MacroData
-    if not data or #data == 0 then return end
-    local t0 = data[1].time
+    if not data or #data == 0 then
+        ShowNotify("❌ ไม่มีข้อมูลให้เล่น")
+        return
+    end
+    local start = data[1].time
     for _, a in ipairs(data) do
-        local delayTime = (a.time - t0)
-        if selectedSpeed == "Fast" then delayTime = delayTime / 2 end
+        local delayTime = a.time - start
         task.delay(delayTime, function()
             if a.action == "UNIT_PLACE" then
-                print("วางยูนิต:", a.unitName, "ตำแหน่ง:", a.Position)
+                print("📦 วางยูนิต:", a.unitName, "→", a.Position)
             elseif a.action == "OnUpgradeClicked" then
-                print("อัปเกรด index:", a.unitIndex)
+                print("⬆️ อัปเกรด index:", a.unitIndex)
             elseif a.action == "OnSpecialClick" then
-                print("ใช้สกิลพิเศษ Index:", a.unitIndex, a.data1, a.data2)
+                print("⚡ สกิล index:", a.unitIndex, a.data1)
             end
         end)
     end
 end
 
--- Save / Load
+-- 💾 Save / Load
 function SaveProfile(name)
-    if not writefile then return ShowNotify("❌ ไม่รองรับ writefile") end
+    if not writefile then return ShowNotify("❌ writefile ไม่รองรับ") end
     writefile(name..".json", HttpService:JSONEncode(getgenv().MacroData))
-    ShowNotify("💾 บันทึกโปรไฟล์: "..name)
+    ShowNotify("✅ บันทึกแล้ว: "..name)
 end
 
 function LoadProfile(name)
-    if not readfile then return ShowNotify("❌ ไม่รองรับ readfile") end
-    local data = readfile(name..".json")
-    getgenv().MacroData = HttpService:JSONDecode(data)
-    getgenv().SelectedProfile = name
-    ShowNotify("📂 โหลดโปรไฟล์: "..name)
+    if not readfile then return ShowNotify("❌ readfile ไม่รองรับ") end
+    if not isfile(name..".json") then return ShowNotify("❌ ไม่พบไฟล์") end
+    local content = readfile(name..".json")
+    getgenv().MacroData = HttpService:JSONDecode(content)
+    ShowNotify("📂 โหลดสำเร็จ: "..name)
 end
 
--- ปุ่มควบคุม
-RecordSwitch.MouseButton1Click:Connect(function()
+-- 🎯 ปุ่ม
+RecordBtn.MouseButton1Click:Connect(function()
     isRecording = not isRecording
-    RecordSwitch.Text = isRecording and "🔴 Record: ON" or "🟡 Record: OFF"
-    if not isRecording then
-        local name = ProfileBox.Text ~= "" and ProfileBox.Text or getgenv().SelectedProfile
-        SaveProfile(name)
-        ShowNotify("🟥 หยุดอัด + บันทึกแล้ว: "..name)
+    RecordBtn.Text = isRecording and "⏺️ Recording..." or "🔴 Record"
+    if isRecording then
+        getgenv().MacroData = {}
+        ShowNotify("🎥 เริ่มอัดมาโคร")
     else
-        getgenv().MacroData = {} -- clear previous session
-        ShowNotify("🎙️ เริ่มอัดมาโครใหม่")
+        local name = ProfileBox.Text ~= "" and ProfileBox.Text or "macro_saved"
+        SaveProfile(name)
+        ShowNotify("💾 อัดเสร็จและบันทึกแล้ว")
     end
 end)
 
-PlaySwitch.MouseButton1Click:Connect(function()
-    isPlaying = not isPlaying
-    PlaySwitch.Text = isPlaying and "🟢 Play: ON" or "🟡 Play: OFF"
-    if isPlaying then
-        ShowNotify("▶️ กำลังเล่น Macro...")
-        PlayMacro()
-        task.delay(1, function()
-            isPlaying = false
-            PlaySwitch.Text = "🟡 Play: OFF"
-        end)
-    else
-        ShowNotify("⏹️ หยุดเล่น Macro")
-    end
+PlayBtn.MouseButton1Click:Connect(function()
+    local name = ProfileBox.Text ~= "" and ProfileBox.Text or "macro_saved"
+    LoadProfile(name)
+    PlayMacro()
+    ShowNotify("▶️ กำลังเล่น Macro...")
 end)
 
 SaveBtn.MouseButton1Click:Connect(function()
-    local name = ProfileBox.Text ~= "" and ProfileBox.Text or getgenv().SelectedProfile
+    local name = ProfileBox.Text ~= "" and ProfileBox.Text or "macro_saved"
     SaveProfile(name)
 end)
 
 LoadBtn.MouseButton1Click:Connect(function()
-    local name = ProfileBox.Text ~= "" and ProfileBox.Text or getgenv().SelectedProfile
+    local name = ProfileBox.Text ~= "" and ProfileBox.Text or "macro_saved"
     LoadProfile(name)
 end)
 
-SpeedDropdown.MouseButton1Click:Connect(function()
-    if selectedSpeed == "Normal" then
-        selectedSpeed = "Fast"
-        SpeedDropdown.Text = "Speed: Fast"
-    else
-        selectedSpeed = "Normal"
-        SpeedDropdown.Text = "Speed: Normal"
-    end
-end)
-
--- บันทึกเมื่อคลิก
+-- 📌 คลิกเพื่อวางยูนิต
 Mouse.Button1Down:Connect(function()
     if isRecording then
-        local position = tostring(Mouse.Hit.Position)
-        RecordAction("UNIT_PLACE", { Position = position })
+        local pos = tostring(Mouse.Hit.Position)
+        RecordAction("UNIT_PLACE", { Position = pos })
     end
 end)
