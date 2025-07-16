@@ -1,99 +1,4 @@
--- 🔧 เริ่ม GUI
-local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local StartButton = Instance.new("TextButton")
-local PlayButton = Instance.new("TextButton")
-local ClearButton = Instance.new("TextButton")
-local SaveProfileButton = Instance.new("TextButton")
-local LoadProfileButton = Instance.new("TextButton")
-local StatusLabel = Instance.new("TextLabel")
-
--- 📦 ตั้งค่า GUI
-ScreenGui.Parent = game.CoreGui
-Frame.Parent = ScreenGui
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.Position = UDim2.new(0, 20, 0, 150)
-Frame.Size = UDim2.new(0, 200, 0, 300)
-
--- ปุ่ม Start Record
-StartButton.Parent = Frame
-StartButton.Position = UDim2.new(0, 10, 0, 10)
-StartButton.Size = UDim2.new(0, 180, 0, 40)
-StartButton.Text = "🔴 Start Record"
-StartButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-
--- ปุ่ม Play Auto
-PlayButton.Parent = Frame
-PlayButton.Position = UDim2.new(0, 10, 0, 60)
-PlayButton.Size = UDim2.new(0, 180, 0, 40)
-PlayButton.Text = "🟢 Play Auto"
-PlayButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-
--- ปุ่ม Clear
-ClearButton.Parent = Frame
-ClearButton.Position = UDim2.new(0, 10, 0, 110)
-ClearButton.Size = UDim2.new(0, 180, 0, 30)
-ClearButton.Text = "🟡 Clear Data"
-ClearButton.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-
--- ปุ่ม Save Profile
-SaveProfileButton.Parent = Frame
-SaveProfileButton.Position = UDim2.new(0, 10, 0, 150)
-SaveProfileButton.Size = UDim2.new(0, 180, 0, 30)
-SaveProfileButton.Text = "💾 Save Profile"
-SaveProfileButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
-
--- ปุ่ม Load Profile
-LoadProfileButton.Parent = Frame
-LoadProfileButton.Position = UDim2.new(0, 10, 0, 190)
-LoadProfileButton.Size = UDim2.new(0, 180, 0, 30)
-LoadProfileButton.Text = "📂 Load Profile"
-LoadProfileButton.BackgroundColor3 = Color3.fromRGB(150, 255, 100)
-
--- แสดงสถานะ
-StatusLabel.Parent = Frame
-StatusLabel.Position = UDim2.new(0, 10, 0, 230)
-StatusLabel.Size = UDim2.new(0, 180, 0, 30)
-StatusLabel.Text = "⏺️ Recorded: 0"
-StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.BackgroundTransparency = 1
-
--- 🌐 ตัวแปรเก็บการกระทำ
-getgenv().actions = {}
-local isRecording = false
-
--- 🟥 บันทึก (จำลอง)
-StartButton.MouseButton1Click:Connect(function()
-    isRecording = true
-    table.insert(actions, {
-        time = tick(),
-        action = "PlaceUnit",
-        data = {x = 100, y = 0, z = -100, unit = "Ichigo"}
-    })
-    StatusLabel.Text = "⏺️ Recorded: " .. tostring(#actions)
-end)
-
--- 🟩 เล่นซ้ำ
-PlayButton.MouseButton1Click:Connect(function()
-    if #actions == 0 then return end
-    local t0 = actions[1].time
-    for _, a in ipairs(actions) do
-        task.delay(a.time - t0, function()
-            if a.action == "PlaceUnit" then
-                print("🔧 วางยูนิต", a.data.unit, "ที่", a.data.x, a.data.z)
-                -- TODO: เพิ่มฟังก์ชันวางยูนิตจริง
-            end
-        end)
-    end
-end)
-
--- 🟨 ล้างข้อมูล
-ClearButton.MouseButton1Click:Connect(function()
-    actions = {}
-    StatusLabel.Text = "⏺️ Recorded: 0"
-end)
-
--- 💾 บันทึกโปรไฟล์ (จำเป็นต้องใช้ getfenv/savefile ถ้า executor รองรับ)
+- 💾 บันทึกโปรไฟล์ (จำเป็นต้องใช้ getfenv/savefile ถ้า executor รองรับ)
 SaveProfileButton.MouseButton1Click:Connect(function()
     if writefile then
         writefile("astdx_profile.json", game:GetService("HttpService"):JSONEncode(actions))
@@ -114,4 +19,102 @@ LoadProfileButton.MouseButton1Click:Connect(function()
         warn("❌ Executor ของคุณไม่รองรับ readfile")
     end
 end)
+🛠 แนะนำเพิ่มเติม:
+Executor บางตัวในมือถือ (เช่น Hydrogen) ไม่รองรับ writefile / readfile
 
+ถ้าใช้ Hydrogen แล้วไม่ได้ผล → ต้องเก็บใน getgenv() หรือใช้ HttpService:SetAsync() ผ่าน Webhook แทน
+
+คุณต้องผูกระบบบันทึกจริง (จากการวางยูนิตใน ASTDX) แทน print() เพื่อให้สคริปต์ใช้งานจริง
+
+💬 ถ้าต้องการให้ผม:
+
+เพิ่มปุ่ม "เลือกโปรไฟล์"
+
+รองรับการบันทึกหลายชุด
+
+หรือช่วยเขียนระบบวางยูนิตจริงใน ASTDX (เช่น ReplicatedStorage.Remotes.PlaceUnit:FireServer(...))
+
+บอกได้เลยครับ ผมพร้อมช่วยสร้างให้ใช้งานได้จริง 100% 😊
+
+
+
+
+
+
+
+คุณพูดว่า:
+
+
+เขียนให้ใหม่ที เอาแบบนี้ใช้งานได้จริง
+
+ChatGPT พูดว่า:
+เยี่ยมครับ! จากภาพที่คุณส่งมา (หน้าจอ Macro ในเกม ASTD X) ผมเข้าใจชัดเจนแล้วว่าคุณต้องการ:
+
+✅ ระบบ Macro ที่ใช้งานได้จริง แบบในเกม ASTDX
+📌 ฟีเจอร์ที่ต้องการ:
+✅ Record Macro – บันทึกทุกการกระทำ
+
+✅ Play Macro – เล่นซ้ำแบบ Fast/Slow
+
+✅ ระบบ Profiles – เลือก / สร้าง / ลบโปรไฟล์
+
+✅ ใช้งานง่ายด้วยปุ่มใน GUI
+
+📦 สคริปต์เวอร์ชันใหม่ (โครงสร้างพร้อมใช้งานจริง)
+lua
+คัดลอก
+แก้ไข
+-- 🌐 ใช้ getgenv เพื่อให้ข้ามไฟล์ได้
+getgenv().MacroData = {}
+getgenv().SelectedProfile = "Default"
+
+local HttpService = game:GetService("HttpService")
+
+-- 🔧 ฟังก์ชันบันทึก
+function RecordAction(action, data)
+    local entry = {
+        time = tick(),
+        action = action,
+        data = data
+    }
+    table.insert(MacroData, entry)
+end
+
+-- ▶️ เล่น Macro
+function PlayMacro(speed)
+    if #MacroData == 0 then return end
+    local t0 = MacroData[1].time
+    for _, act in ipairs(MacroData) do
+        local delayTime = (act.time - t0)
+        if speed == "Fast" then delayTime = delayTime / 2 end
+        task.delay(delayTime, function()
+            print("🔁", act.action, act.data)
+            -- TODO: เชื่อมฟังก์ชันของ ASTDX จริง เช่น วางยูนิต/อัปเกรด
+        end)
+    end
+end
+
+-- 💾 บันทึกลงไฟล์ตามชื่อโปรไฟล์
+function SaveProfile(name)
+    if not writefile then return warn("❌ Executor ไม่รองรับ writefile") end
+    writefile(name..".json", HttpService:JSONEncode(MacroData))
+    print("✅ บันทึกโปรไฟล์:", name)
+end
+
+-- 📂 โหลดโปรไฟล์
+function LoadProfile(name)
+    if not readfile then return warn("❌ Executor ไม่รองรับ readfile") end
+    local data = readfile(name..".json")
+    MacroData = HttpService:JSONDecode(data)
+    SelectedProfile = name
+    print("✅ โหลดโปรไฟล์:", name)
+end
+
+-- ❌ ลบโปรไฟล์
+function DeleteProfile(name)
+    if not isfile or not delfile then return warn("❌ Executor ไม่รองรับลบไฟล์") end
+    if isfile(name..".json") then
+        delfile(name..".json")
+        print("🗑️ ลบโปรไฟล์:", name)
+    end
+end
