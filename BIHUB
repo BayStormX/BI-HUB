@@ -1,4 +1,4 @@
--- ✅ รวมโค้ด GUI หลักกับระบบแจ้งเตือน + toggle Record/Play และการดึงชื่อยูนิตอัตโนมัติ
+-- ✅ รวมโค้ด GUI หลักกับระบบแจ้งเตือน + toggle Record/Play และการดึงชื่อยูนิตอัตโนมัติ พร้อมบันทึกอัตโนมัติเมื่อหยุดอัด
 -- ให้วางทั้งหมดใน Executor (เช่น Hydrogen, Fluxus, Synapse)
 
 -- 🌐 ใช้ getgenv เพื่อให้ข้ามไฟล์ได้
@@ -46,7 +46,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
     ToggleBtn.Text = isVisible and "🔽 Hide GUI" or "▶️ Show GUI"
 end)
 
--- สร้างปุ่มฟังก์ชัน
 local function makeBtn(name, text, y)
     local btn = Instance.new("TextButton")
     btn.Name = name
@@ -62,14 +61,14 @@ local function makeBtn(name, text, y)
     return btn
 end
 
--- ปุ่มต่าง ๆ
+-- ปุ่ม
 local RecordSwitch = makeBtn("RecordSwitch", "🟡 Record: OFF", 40)
 local PlaySwitch = makeBtn("PlaySwitch", "🟡 Play: OFF", 80)
 local SaveBtn = makeBtn("SaveBtn", "💾 Save Profile", 120)
 local LoadBtn = makeBtn("LoadBtn", "📂 Load Profile", 160)
 local SpeedDropdown = makeBtn("SpeedBtn", "Speed: Normal", 200)
 
--- ช่องพิมพ์ชื่อโปรไฟล์
+-- กล่องชื่อโปรไฟล์
 local ProfileBox = Instance.new("TextBox")
 ProfileBox.Parent = Frame
 ProfileBox.Size = UDim2.new(0, 180, 0, 30)
@@ -82,7 +81,7 @@ ProfileBox.TextSize = 18
 ProfileBox.Text = ""
 ProfileBox.Visible = true
 
--- 🟨 แจ้งเตือนด้านล่าง
+-- แจ้งเตือน
 local NotifyLabel = Instance.new("TextLabel")
 NotifyLabel.Size = UDim2.new(0, 300, 0, 30)
 NotifyLabel.Position = UDim2.new(0, 10, 1, -40)
@@ -103,29 +102,24 @@ function ShowNotify(msg)
     end)
 end
 
--- 📦 สถานะระบบ
+-- สถานะ
 local isRecording = false
 local isPlaying = false
 local selectedSpeed = "Normal"
 
--- 🔧 บันทึก Macro พร้อมดึงชื่อยูนิตอัตโนมัติ
+-- บันทึก Action
 function RecordAction(action, extra)
     if not isRecording then return end
     local entry = { time = tick(), action = action }
     for k, v in pairs(extra) do entry[k] = v end
-    -- พยายามดึง unitName จากวัตถุที่ Mouse ชี้อยู่
     if action == "UNIT_PLACE" and not entry.unitName then
         local target = Mouse.Target
-        if target and target.Parent then
-            entry.unitName = target.Parent.Name
-        else
-            entry.unitName = "UnknownUnit"
-        end
+        entry.unitName = (target and target.Parent and target.Parent.Name) or "UnknownUnit"
     end
     table.insert(getgenv().MacroData, entry)
 end
 
--- ▶️ เล่น Macro ตามเวลา
+-- เล่น Macro
 function PlayMacro()
     local data = getgenv().MacroData
     if not data or #data == 0 then return end
@@ -145,7 +139,7 @@ function PlayMacro()
     end
 end
 
--- 💾 Save / Load
+-- Save / Load
 function SaveProfile(name)
     if not writefile then return ShowNotify("❌ ไม่รองรับ writefile") end
     writefile(name..".json", HttpService:JSONEncode(getgenv().MacroData))
@@ -160,11 +154,18 @@ function LoadProfile(name)
     ShowNotify("📂 โหลดโปรไฟล์: "..name)
 end
 
--- 🎯 ปุ่มควบคุม
+-- ปุ่มควบคุม
 RecordSwitch.MouseButton1Click:Connect(function()
     isRecording = not isRecording
     RecordSwitch.Text = isRecording and "🔴 Record: ON" or "🟡 Record: OFF"
-    ShowNotify(isRecording and "🎙️ เริ่มอัดมาโครแล้ว" or "🟥 หยุดอัดมาโครแล้ว")
+    if not isRecording then
+        local name = ProfileBox.Text ~= "" and ProfileBox.Text or getgenv().SelectedProfile
+        SaveProfile(name)
+        ShowNotify("🟥 หยุดอัด + บันทึกแล้ว: "..name)
+    else
+        getgenv().MacroData = {} -- clear previous session
+        ShowNotify("🎙️ เริ่มอัดมาโครใหม่")
+    end
 end)
 
 PlaySwitch.MouseButton1Click:Connect(function()
@@ -202,7 +203,7 @@ SpeedDropdown.MouseButton1Click:Connect(function()
     end
 end)
 
--- 🧪 ตัวอย่างอัดยูนิต
+-- บันทึกเมื่อคลิก
 Mouse.Button1Down:Connect(function()
     if isRecording then
         local position = tostring(Mouse.Hit.Position)
