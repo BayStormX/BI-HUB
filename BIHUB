@@ -3,6 +3,79 @@ getgenv().MacroData = {}
 getgenv().SelectedProfile = "Default"
 
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- 🖼️ GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ASTDX_MacroGui"
+ScreenGui.ResetOnSpawn = false
+if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end
+ScreenGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
+
+local Frame = Instance.new("Frame")
+Frame.Parent = ScreenGui
+Frame.Position = UDim2.new(0, 20, 0, 150)
+Frame.Size = UDim2.new(0, 200, 0, 280)
+Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+
+-- ปุ่มพับเก็บ GUI
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 180, 0, 30)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 0)
+ToggleBtn.Text = "🔽 Hide GUI"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Font = Enum.Font.SourceSans
+ToggleBtn.TextSize = 18
+ToggleBtn.Parent = Frame
+
+local isVisible = true
+ToggleBtn.MouseButton1Click:Connect(function()
+    isVisible = not isVisible
+    for _, child in ipairs(Frame:GetChildren()) do
+        if child ~= ToggleBtn then
+            child.Visible = isVisible
+        end
+    end
+    ToggleBtn.Text = isVisible and "🔽 Hide GUI" or "▶️ Show GUI"
+end)
+
+local function makeBtn(name, text, y)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(0, 180, 0, 30)
+    btn.Position = UDim2.new(0, 10, 0, y)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 18
+    btn.Visible = true
+    btn.Parent = Frame
+    return btn
+end
+
+local RecordBtn = makeBtn("RecordBtn", "🔴 Record Action", 40)
+local PlayBtn = makeBtn("PlayBtn", "▶️ Play Macro", 80)
+local SaveBtn = makeBtn("SaveBtn", "💾 Save Profile", 120)
+local LoadBtn = makeBtn("LoadBtn", "📂 Load Profile", 160)
+local SpeedDropdown = makeBtn("SpeedBtn", "Speed: Normal", 200)
+
+local ProfileBox = Instance.new("TextBox")
+ProfileBox.Parent = Frame
+ProfileBox.Size = UDim2.new(0, 180, 0, 30)
+ProfileBox.Position = UDim2.new(0, 10, 0, 240)
+ProfileBox.PlaceholderText = "ชื่อโปรไฟล์"
+ProfileBox.TextColor3 = Color3.new(1, 1, 1)
+ProfileBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ProfileBox.Font = Enum.Font.SourceSans
+ProfileBox.TextSize = 18
+ProfileBox.Text = ""
+ProfileBox.Visible = true
 
 -- 🔧 ฟังก์ชันบันทึก
 function RecordAction(action, data)
@@ -11,14 +84,15 @@ function RecordAction(action, data)
         action = action,
         data = data
     }
-    table.insert(MacroData, entry)
+    table.insert(getgenv().MacroData, entry)
 end
 
 -- ▶️ เล่น Macro
 function PlayMacro(speed)
-    if #MacroData == 0 then return end
-    local t0 = MacroData[1].time
-    for _, act in ipairs(MacroData) do
+    local data = getgenv().MacroData
+    if #data == 0 then return end
+    local t0 = data[1].time
+    for _, act in ipairs(data) do
         local delayTime = (act.time - t0)
         if speed == "Fast" then delayTime = delayTime / 2 end
         task.delay(delayTime, function()
@@ -31,7 +105,7 @@ end
 -- 💾 บันทึกลงไฟล์ตามชื่อโปรไฟล์
 function SaveProfile(name)
     if not writefile then return warn("❌ Executor ไม่รองรับ writefile") end
-    writefile(name..".json", HttpService:JSONEncode(MacroData))
+    writefile(name..".json", HttpService:JSONEncode(getgenv().MacroData))
     print("✅ บันทึกโปรไฟล์:", name)
 end
 
@@ -39,8 +113,8 @@ end
 function LoadProfile(name)
     if not readfile then return warn("❌ Executor ไม่รองรับ readfile") end
     local data = readfile(name..".json")
-    MacroData = HttpService:JSONDecode(data)
-    SelectedProfile = name
+    getgenv().MacroData = HttpService:JSONDecode(data)
+    getgenv().SelectedProfile = name
     print("✅ โหลดโปรไฟล์:", name)
 end
 
@@ -52,44 +126,6 @@ function DeleteProfile(name)
         print("🗑️ ลบโปรไฟล์:", name)
     end
 end
-
--- 🖼️ GUI
-local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local RecordBtn = Instance.new("TextButton")
-local PlayBtn = Instance.new("TextButton")
-local SaveBtn = Instance.new("TextButton")
-local LoadBtn = Instance.new("TextButton")
-local ProfileBox = Instance.new("TextBox")
-local SpeedDropdown = Instance.new("TextButton")
-
-ScreenGui.Parent = game.CoreGui
-Frame.Parent = ScreenGui
-Frame.Position = UDim2.new(0, 20, 0, 150)
-Frame.Size = UDim2.new(0, 200, 0, 280)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-
-local function makeBtn(btn, text, y)
-    btn.Size = UDim2.new(0, 180, 0, 30)
-    btn.Position = UDim2.new(0, 10, 0, y)
-    btn.Text = text
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Parent = Frame
-end
-
-makeBtn(RecordBtn, "🔴 Record Action", 10)
-makeBtn(PlayBtn,   "▶️ Play Macro", 50)
-makeBtn(SaveBtn,   "💾 Save Profile", 90)
-makeBtn(LoadBtn,   "📂 Load Profile", 130)
-makeBtn(SpeedDropdown, "Speed: Normal", 170)
-
-ProfileBox.Parent = Frame
-ProfileBox.Size = UDim2.new(0, 180, 0, 30)
-ProfileBox.Position = UDim2.new(0, 10, 0, 210)
-ProfileBox.PlaceholderText = "ชื่อโปรไฟล์"
-ProfileBox.TextColor3 = Color3.new(1, 1, 1)
-ProfileBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 
 -- 🎯 การทำงานปุ่ม
 local selectedSpeed = "Normal"
@@ -103,12 +139,12 @@ PlayBtn.MouseButton1Click:Connect(function()
 end)
 
 SaveBtn.MouseButton1Click:Connect(function()
-    local name = ProfileBox.Text ~= "" and ProfileBox.Text or SelectedProfile
+    local name = ProfileBox.Text ~= "" and ProfileBox.Text or getgenv().SelectedProfile
     SaveProfile(name)
 end)
 
 LoadBtn.MouseButton1Click:Connect(function()
-    local name = ProfileBox.Text ~= "" and ProfileBox.Text or SelectedProfile
+    local name = ProfileBox.Text ~= "" and ProfileBox.Text or getgenv().SelectedProfile
     LoadProfile(name)
 end)
 
