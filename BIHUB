@@ -12,6 +12,27 @@ ScreenGui.Name = "ASTDX_MacroGui"
 ScreenGui.ResetOnSpawn = false
 if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end
 ScreenGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
+-- 🛑 UI แจ้งเตือนสถานะ (Floating Notification)
+local NotifyLabel = Instance.new("TextLabel")
+NotifyLabel.Name = "StatusNotify"
+NotifyLabel.Size = UDim2.new(0, 300, 0, 30)
+NotifyLabel.Position = UDim2.new(0, 10, 1, -40) -- มุมซ้ายล่าง
+NotifyLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+NotifyLabel.BackgroundTransparency = 0.3
+NotifyLabel.TextColor3 = Color3.new(1, 1, 1)
+NotifyLabel.Font = Enum.Font.SourceSansBold
+NotifyLabel.TextSize = 18
+NotifyLabel.Visible = false
+NotifyLabel.Parent = ScreenGui
+
+-- 📢 ฟังก์ชันแสดงข้อความ
+function ShowNotify(msg)
+    NotifyLabel.Text = msg
+    NotifyLabel.Visible = true
+    task.delay(2, function()
+        NotifyLabel.Visible = false
+    end)
+end
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
