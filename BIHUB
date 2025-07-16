@@ -1,4 +1,4 @@
--- ✅ รวมโค้ด GUI หลักกับระบบแจ้งเตือน + toggle Record/Play ไว้ในที่เดียว
+-- ✅ รวมโค้ด GUI หลักกับระบบแจ้งเตือน + toggle Record/Play และการดึงชื่อยูนิตอัตโนมัติ
 -- ให้วางทั้งหมดใน Executor (เช่น Hydrogen, Fluxus, Synapse)
 
 -- 🌐 ใช้ getgenv เพื่อให้ข้ามไฟล์ได้
@@ -8,6 +8,7 @@ getgenv().SelectedProfile = "Default"
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
 -- 🖼️ GUI หลัก
 local ScreenGui = Instance.new("ScreenGui")
@@ -107,11 +108,20 @@ local isRecording = false
 local isPlaying = false
 local selectedSpeed = "Normal"
 
--- 🔧 บันทึก Macro
+-- 🔧 บันทึก Macro พร้อมดึงชื่อยูนิตอัตโนมัติ
 function RecordAction(action, extra)
     if not isRecording then return end
     local entry = { time = tick(), action = action }
     for k, v in pairs(extra) do entry[k] = v end
+    -- พยายามดึง unitName จากวัตถุที่ Mouse ชี้อยู่
+    if action == "UNIT_PLACE" and not entry.unitName then
+        local target = Mouse.Target
+        if target and target.Parent then
+            entry.unitName = target.Parent.Name
+        else
+            entry.unitName = "UnknownUnit"
+        end
+    end
     table.insert(getgenv().MacroData, entry)
 end
 
@@ -189,5 +199,13 @@ SpeedDropdown.MouseButton1Click:Connect(function()
     else
         selectedSpeed = "Normal"
         SpeedDropdown.Text = "Speed: Normal"
+    end
+end)
+
+-- 🧪 ตัวอย่างอัดยูนิต
+Mouse.Button1Down:Connect(function()
+    if isRecording then
+        local position = tostring(Mouse.Hit.Position)
+        RecordAction("UNIT_PLACE", { Position = position })
     end
 end)
